@@ -117,7 +117,7 @@ class Blockchain(object):
         """
         guess = f"{block_string}{proof}".encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
-        return guess_hash[:6] == "000000"
+        return guess_hash[:5] == "00000"
 
 
 # Instantiate our Node
@@ -128,44 +128,40 @@ node_identifier = str(uuid4()).replace('-', '')
 
 # Instantiate the Blockchain
 blockchain = Blockchain()
-print(blockchain.chain)
-print(blockchain.hash(blockchain.last_block))
 
 @app.route('/mine', methods=['POST'])
 def mine():
+    # Get proof from client
+    # data is a dict
     data = request.get_json()
-    print("Data:", data)
 
-    if "proof" not in data:
-        response = {
-            "message": "Must supply proof"
-        }
+    # Check that 'proof' and 'id' are present
+    if 'proof' not in data or 'id' not in data:
+        response = {"message": 'Must contain "proof" and "id"'}
         return jsonify(response), 400
-
-    if "id" not in data:
-        response = {
-            "message": "Must supply id"
-        }
-        return jsonify(response), 400     
-
-    # Run the proof of work algorithm to get the next proof
-    proof = data['proof']
-    last_block = blockchain.last_block
-    last_block_string = json.dumps(last_block, sort_keys=True)
     
+    proof = data['proof']
+
+    # Checks that proof is valid
+    last_block = blockchain.last_block
+    # Create the block_string
+    last_block_string = json.dumps(last_block, sort_keys=True)
+
     if blockchain.valid_proof(last_block_string, proof):
-        previous_hash = blockchain.hash(blockchain.last_block)
+        # Forge/mints new Block, adding to the chain with proof
+        previous_hash = blockchain.hash(last_block)
         block = blockchain.new_block(proof, previous_hash)
 
         response = {
-            "message": "Proof was successful!",
-            "block": block
+            'message': "New Block Forged",
+            'index': block['index'],
+            'transactions': block['transactions'],
+            'proof': block['proof'],
+            'previous_hash': block['previous_hash'],
         }
         return jsonify(response), 200
     else:
-        response = {
-            "message": "Proof was not successful."
-        }
+        response = {'message': 'Invalid proof'}
         return jsonify(response), 400
    
 
